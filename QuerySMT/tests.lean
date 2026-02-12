@@ -368,10 +368,10 @@ example {α : Type} [Inhabited α] (x y : α) : [x] = [y] ↔ x = y := by
       Exists.intro (List.rec (motive := fun (_ : List α) => α) default fun (arg0 : α) (arg1 : List α) (_ : α) => arg0)
     intros
     rfl
-  duper [negGoal] [«_List.cons_sel0Fact»]
+  duper [negGoal, «_List.cons_sel0Fact»] []
 
 -- Selector facts needed for portoflio instance 1. Duper can solve this on its own in portfolio instance 7.
-example {α : Type} [Inhabited α] (x y x' y' : α) : [x, y] = [x', y'] ↔ (x = x' ∧ y = y') := by
+example {α : Type _} [Inhabited α] (x y x' y' : α) : [x, y] = [x', y'] ↔ (x = x' ∧ y = y') := by
   apply @Classical.byContradiction
   intro negGoal
   obtain ⟨«_List.cons_sel0», «_List.cons_sel0Fact»⟩ :
@@ -388,7 +388,7 @@ example {α : Type} [Inhabited α] (x y x' y' : α) : [x, y] = [x', y'] ↔ (x =
       Exists.intro (List.rec (motive := fun (_ : List α) => List α) default fun (arg0 : α) (arg1 _ : List α) => arg1)
     intros
     rfl
-  duper [negGoal] [«_List.cons_sel0Fact», «_List.cons_sel1Fact»]
+  duper [negGoal, «_List.cons_sel0Fact», «_List.cons_sel1Fact»] []
 
 example {α : Type} (x y x' y' : α) : [x, y] = [x', y'] ↔ (x = x' ∧ y = y') := by
   apply @Classical.byContradiction
@@ -408,3 +408,32 @@ example {α : Type} (x y x' y' : α) : [x, y] = [x', y'] ↔ (x = x' ∧ y = y')
     intros
     rfl
   duper [negGoal] [«_List.cons_sel0Fact», «_List.cons_sel1Fact»]
+
+example (f : Int → Int) (a b c d : Int) (hf : ∀ x y : Int, x < y → f x < f y)
+  (h1 : a < b) (h2 : c < d) : f (a + c) < f (b + d) := by
+  querySMT
+
+example (f : Int → Int) (hf : ∀ x y : Int, f (x + y) = f x + f y) (x : Int) : f (4 * x) = f (2 * x) + f (2 * x) := by
+  querySMT
+
+example (f : Int → Int) (min : Int) (hmin : ∀ y, min ≠ y → f min < f y) : ∃ z : Int, ∀ x : Int, f z ≤ f x := by
+  querySMT
+
+example (f : Int → Int) (hmin : ∃ x, ∀ y, x ≠ y → f x < f y) : ∃ x : Int, ∀ y : Int, f x ≤ f y := by
+  querySMT
+
+example (f : Int → Int) (hmin : ∃ x, ∀ y, x ≠ y → f x < f y) : ∃ x : Int, ∀ y : Int, f x ≤ f y := by
+  querySMT
+
+example (f : Int → Int) (min max : Int)
+  (hmin : ∀ x, min ≠ x → f min < f x)
+  (hmax : ∀ x, max ≠ x → f max > f x)
+  : ∀ x, ∀ y, f x - f y ≤ (f max - f min) := by
+  -- `querySMT` fails here
+  apply @Classical.byContradiction
+  intro negGoal
+  skolemizeAll
+  autoGetHints
+
+example (m n : ℤ) : (m - n).gcd m = n.gcd m := by
+  querySMT [Int.gcd_mul_right_sub_left]

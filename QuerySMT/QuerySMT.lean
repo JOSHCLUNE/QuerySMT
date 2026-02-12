@@ -1,5 +1,4 @@
 import Duper
--- import QuerySMT.UtilTactics -- Removing this dependency so I can enable precompileModules
 import QuerySMT.SkolemizeAll
 
 open Lean Meta Auto Elab Tactic Parser Tactic Duper
