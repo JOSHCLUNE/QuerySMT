@@ -505,6 +505,61 @@ def isAdditionalFact : CoreM (Term → Bool) := do
   let additionalFacts ← getAdditionalFacts
   return additionalFacts.contains
 
+-- currently uses "bvarN", can change
+def cleanName (old : Name) : StateM Nat Name := do
+  if old.toString.startsWith "BOUND_VARIABLE" then
+    let idx ← get
+    set (idx + 1)
+
+    return (Name.mkSimple "bvar").appendAfter s!"{idx}"
+  else
+    return old
+
+-- Need to figure out which of these to actually update names for
+-- Fixed by just checking for BOUND_VARIABLE but maybe still remove certain cases for efficiency
+def renameBvars (e : Expr) : StateM Nat Expr := do
+  match e with
+  | .forallE name type body bi =>
+      let newName ← cleanName name
+      let newType ← renameBvars type
+      let newBody ← renameBvars body
+      return .forallE newName newType newBody bi
+
+  | .lam name type body bi =>
+      let newName ← cleanName name
+      let newType ← renameBvars type
+      let newBody ← renameBvars body
+      return .lam newName newType newBody bi
+
+  | .letE name type val body nonDep =>
+      let newName ← cleanName name
+      let newType ← renameBvars type
+      let newVal ← renameBvars val
+      let newBody ← renameBvars body
+      return .letE newName newType newVal newBody nonDep
+
+  -- For standard applications and metadata, we just recurse deeper
+  | .app fn arg =>
+      let newFn ← renameBvars fn
+      let newArg ← renameBvars arg
+      return .app newFn newArg
+
+  | .mdata data expr =>
+      let newExpr ← renameBvars expr
+      return .mdata data newExpr
+
+  | .proj typeName idx expr =>
+      let newExpr ← renameBvars expr
+      return .proj typeName idx newExpr
+
+  | _ => return e
+
+def renameHelper (prop: Expr) : Expr := (renameBvars prop).run' 1
+
+def preprocess (props: List Expr) : List Expr :=
+  List.map renameHelper props
+  -- More here later
+
 def evalQuerySMTWithArgs (stxRef : Syntax) (facts : Syntax.TSepArray [`QuerySMT.querySMTStar, `term] ",")
   (configOptions : Syntax.TSepArray `QuerySMT.configOption ",") : TacticM Unit := withMainContext do
   let (includeLCtx, facts) := removeQuerySMTStar facts
@@ -592,6 +647,10 @@ def evalQuerySMTWithArgs (stxRef : Syntax) (facts : Syntax.TSepArray [`QuerySMT.
             )
         let (unsatCoreDerivLeafStrings, selectorInfos, allSMTLemmas) := SMTHints
         let (preprocessFacts, theoryLemmas, _instantiations, computationLemmas, polynomialLemmas, rewriteFacts) := allSMTLemmas
+
+        -- preprocessing to make output cleaner
+        let preprocessFacts := preprocess preprocessFacts
+
         let smtLemmas :=
           if ← getIgnoreHintsM then
             []

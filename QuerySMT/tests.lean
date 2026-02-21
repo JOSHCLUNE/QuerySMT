@@ -24,6 +24,8 @@ set_option duper.throwPortfolioErrors false
 set_option duper.collectDatatypes true
 set_option auto.getHints.failOnParseError true
 
+set_option querySMT.filterHints false
+
 example (x y z : Int) : x ≤ y → y ≤ z → x ≤ z := by
   querySMT
 
