@@ -511,7 +511,7 @@ def cleanName (old : Name) : StateM Nat Name := do
     let idx ← get
     set (idx + 1)
 
-    return (Name.mkSimple "bvar").appendAfter s!"{idx}"
+    return (Name.mkSimple "bv").appendAfter s!"{idx}"
   else
     return old
 
