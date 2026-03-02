@@ -55,6 +55,11 @@ register_option querySMT.printHintNumbers : Bool := {
   descr := "Tells querySMT to print the number of smt hints"
 }
 
+register_option querySMT.filterRedundancies : Bool := {
+  defValue := true
+  descr := "Tells querySMT to remove redundant hypotheses in lemmas proven by grind"
+}
+
 declare_syntax_cat QuerySMT.configOption (behavior := symbol)
 
 namespace QuerySMT
@@ -88,6 +93,9 @@ def getFilterHints (opts : Options) : Bool :=
 
 def getPrintHintNumbers (opts : Options) : Bool :=
   querySMT.printHintNumbers.get opts
+
+def getFilterRedundancies (opts : Options) : Bool :=
+  querySMT.filterRedundancies.get opts
 
 def getIgnoreHintsM : CoreM Bool := do
   let opts ← getOptions
@@ -128,6 +136,10 @@ def getFilterHintsM : CoreM Bool := do
 def getPrintHintNumbersM : CoreM Bool := do
   let opts ← getOptions
   return getPrintHintNumbers opts
+
+def getFilterRedundanciesM : CoreM Bool := do
+  let opts ← getOptions
+  return getFilterRedundancies opts
 
 syntax (&"lemmaPrefix" " := " strLit) : QuerySMT.configOption
 syntax (&"skolemPrefix" " := " strLit) : QuerySMT.configOption
@@ -517,6 +529,7 @@ def cleanName (old : Name) : StateM Nat Name := do
 
 -- Need to figure out which of these to actually update names for
 -- Fixed by just checking for BOUND_VARIABLE but maybe still remove certain cases for efficiency
+-- check for duplicates, problem if name already exists
 def renameBvars (e : Expr) : StateM Nat Expr := do
   match e with
   | .forallE name type body bi =>
@@ -590,13 +603,51 @@ def removeHaveStatements (e : Expr) : TacticM Expr := do
 -- def zetaReduce (prop : Expr) : TacticM Expr := do
 --   Meta.zetaReduce prop
 
+def removeRedundantHypotheses (e : Expr) : TacticM Expr := do
+  match e with
+  | .forallE name type body bi =>
+      let ctx ← Lean.MonadLCtx.getLCtx -- get the local context.
+      let remove ← ctx.anyM fun decl: Lean.LocalDecl => do
+        let declType := decl.type
+        if ← Meta.isDefEq declType type then return true else return false
+      if remove then return body else return .forallE name type body bi
+
+  | .lam name type body bi =>
+      return .lam name type body bi
+
+  | .letE name type val body nonDep =>
+      return .letE name type val body nonDep
+
+  | .app fn arg =>
+      return .app fn arg
+
+  | .mdata data expr =>
+      return .mdata data expr
+
+  | .proj typeName idx expr =>
+      return .proj typeName idx expr
+
+  | _ => return e
+
+def replaceIntOfNat (e : Expr) : TacticM Expr :=
+  Lean.Meta.transform e (post := fun e => do
+    match e with
+    | .app (.const ``Int.ofNat _) (.lit (.natVal n)) => return .done (.lit (.natVal n))
+    | _ => return .continue)
+
 def preprocess (props: List Expr) : TacticM (List Expr) := do
   let renamedProps := List.map renameHelper props
 
   let zetaProps ← renamedProps.mapM removeHaveStatements
 
+  let cleaned ← if ← getFilterRedundanciesM then
+    zetaProps.mapM removeRedundantHypotheses
+  else
+    pure zetaProps
+
+  let litProps ← cleaned.mapM replaceIntOfNat 
   -- more here
-  return zetaProps
+  return litProps
 
 def evalQuerySMTWithArgs (stxRef : Syntax) (facts : Syntax.TSepArray [`QuerySMT.querySMTStar, `term] ",")
   (configOptions : Syntax.TSepArray `QuerySMT.configOption ",") : TacticM Unit := withMainContext do
