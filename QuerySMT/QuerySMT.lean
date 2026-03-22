@@ -576,11 +576,12 @@ def removeHaveStatements (e : Expr) : TacticM Expr := do
 def removeRedundantHypotheses (e : Expr) : TacticM Expr := do
   match e with
   | .forallE name type body bi =>
-      let ctx ← Lean.MonadLCtx.getLCtx
-      let remove ← ctx.anyM fun decl: Lean.LocalDecl => do
-        let declType := decl.type
-        return ← Meta.isDefEq declType type
-      if remove then return body else return .forallE name type body bi
+    if body.hasLooseBVars then return .forallE name type body bi
+    let ctx ← Lean.MonadLCtx.getLCtx
+    let remove ← ctx.anyM fun decl: Lean.LocalDecl => do
+      let declType := decl.type
+      return ← Meta.isDefEq declType type
+    if remove then return body else return .forallE name type body bi
 
   | _ => return e
 
@@ -632,7 +633,6 @@ def preprocess (props: List Expr) : TacticM (List Expr) := do
   else
     pure props
 
-  -- trace[querySMT.debug] "Before final preprocess: {props}"
   let props ← props.mapM replaceIntOfNat
   -- trace[querySMT.debug] "After preprocess: {props}"
   return props

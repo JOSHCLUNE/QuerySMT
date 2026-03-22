@@ -27,20 +27,9 @@ set_option auto.getHints.failOnParseError true
 
 -- set_option querySMT.filterHints false
 
-
-example (x y z : Int) : x < y → y < z → x < z := by
-  querySMT
-
 -- Simple Int Inequalities
 example (x y z : Int) : x < y → y < z → x < z := by
-  intros h0 h1
-  apply @Classical.byContradiction
-  intro negGoal
-  have smtLemma0 : ¬x + -1 * y ≥ 0 := by grind
-  have smtLemma1 : z + -1 * y ≥ 1 := by grind
-  have smtLemma2 : x + -1 * z ≥ 0 := by grind
-  have smtLemma3 : x + -1 * z ≥ 0 ∧ z + -1 * y ≥ 1 → x + -1 * y ≥ 0 := by grind
-  duper [smtLemma0, smtLemma1, smtLemma2, smtLemma3] []
+  querySMT
 
 example (x y z : Int) : x < y → z < x → ¬z = y := by
   querySMT
@@ -118,9 +107,31 @@ example (f g : Nat → Nat) (h1 : ∀ x : Nat, f (g x) = x) : (∀ x y : Nat, x 
 
 -- Complex Algebraic Inequalities
 
--- Simple Arithmetic Possibility
+example : ∀ y z w : Int, ∃ x : Int, x * y > z ∧ x * w < z → y > w  := by
+  querySMT
 
--- Complex Arithmetic Possibility
+-- Fails
+-- example (a b c : Int) (hab : a ≠ b) (hbc : b ≠ c) (hca : c ≠ a) :
+--   (a - b)^2 + (b - c)^2 + (c - a)^2 ≥ 6 := by
+--   querySMT
+
+-- Fails
+-- example (x y : Int) : x^2 + y^2 ≥ x * y + x + y - 1 := by
+--   querySMT
+
+example (a b c d : Int) (h1 : a ≤ b) (h2 : c < d) : a + c < b + d := by
+  querySMT
+
+-- Fails
+-- example (x y : Int) : x^2 + 2 * x * y + y^2 ≥ 0 := by
+--   querySMT
+
+example (x y : Int) (h : 2 * x + 1 < 2 * y) : x < y := by
+  querySMT
+
+-- Fails
+-- example (x : Int) : x * x ≥ x := by
+--   querySMT
 
 -- List Lemmas
 
