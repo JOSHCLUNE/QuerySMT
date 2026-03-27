@@ -517,24 +517,14 @@ def isAdditionalFact : CoreM (Term → Bool) := do
   let additionalFacts ← getAdditionalFacts
   return additionalFacts.contains
 
-structure Counter where
-  counter : Nat := 0
+abbrev NatTacticM := StateRefT Nat TacticM
 
-abbrev NatTacticM := StateRefT Counter TacticM
-
-def incCounter : NatTacticM Unit := do
-  let idx ← get
-  set { idx with counter := idx.counter + 1 }
-
--- Currently uses "bvN", can change naming
--- Made partial to allow recursion to avoid shadowing
 partial def cleanName (old : Name) : NatTacticM Name := do
   if old.toString.startsWith "BOUND_VARIABLE" then
     let idx ← get
-    set { idx with counter := idx.counter + 1 }
-
+    set (idx + 1)
     let lctx ← getLCtx
-    let newName := (Name.mkSimple s!"bv{idx.counter}")
+    let newName := (Name.mkSimple s!"bv{idx}")
     if lctx.usesUserName newName then
       cleanName old
     else
@@ -548,20 +538,16 @@ def renameBvars (e : Expr) : NatTacticM Expr := do
     | .forallE name type body bi =>
       let newName ← cleanName name
       return .continue (some (.forallE newName type body bi))
-
     | .lam name type body bi =>
       let newName ← cleanName name
       return .continue (some (.lam newName type body bi))
-
     | .letE name type val body nonDep =>
       let newName ← cleanName name
       return .continue (some (.letE newName type val body nonDep))
-
-    | _ => return .continue
-  )
+    | _ => return .continue)
 
 def renameHelper (prop: Expr) : TacticM Expr := do
-  let (prop, _) ← ((renameBvars prop).run { counter := 0})
+  let (prop, _) ← ((renameBvars prop).run 0)
   return prop
 
 def removeHaveStatements (e : Expr) : TacticM Expr := do
@@ -569,9 +555,7 @@ def removeHaveStatements (e : Expr) : TacticM Expr := do
     match e with
     | .letE _ _ val body _ =>
         return .visit (body.instantiate1 val)
-
-    | _ => return .continue
-  )
+    | _ => return .continue)
 
 def removeRedundantHypotheses (e : Expr) : TacticM Expr := do
   match e with
@@ -582,7 +566,6 @@ def removeRedundantHypotheses (e : Expr) : TacticM Expr := do
       let declType := decl.type
       return ← Meta.isDefEq declType type
     if remove then return body else return .forallE name type body bi
-
   | _ => return e
 
 def replaceIntOfNat (e : Expr) : TacticM Expr :=
@@ -593,48 +576,18 @@ def replaceIntOfNat (e : Expr) : TacticM Expr :=
       let val := mkRawNatLit n
       let cleanLit ← mkAppOptM ``OfNat.ofNat #[some type, some val, none]
       return .done cleanLit
-    -- This is necessary only if the below removal is also added
-    -- | .app (.app (.app (.app (.app (.app (.const ``HMul.hMul _) _) _) _) _) lhs) rhs =>
-    --   trace[querySMT.debug] "hello!: {lhs} AND {rhs}"
-    --   match lhs, rhs with
-    --   | .app (.app (.app (.const ``Neg.neg _) _) _) (.app (.const ``Int.ofNat _) (.lit (.natVal n))),
-    --     .app (.const ``Int.ofNat _) y =>
-    --     -- reconstruct -n * Int.ofNat y
-    --     let type := mkConst ``Int
-    --     let val := mkRawNatLit n
-    --     let cleanLit ← mkAppOptM ``OfNat.ofNat #[some type, some val, none]
-
-    --     let intY ← mkAppM ``Int.ofNat #[y]
-    --     let negLit ← mkAppM ``Neg.neg #[cleanLit]
-    --     let finalExpr ← mkAppM ``HMul.hMul #[negLit, intY]
-
-    --     return .done finalExpr
-    --   | _, _ =>
-    --     -- Any other multiplication
-    --     return .continue
-    -- This somewhat works but causes pretty printing to fail for operators
-    -- | .app (.const ``Int.ofNat _) x =>
-    --   let type := mkConst ``Int
-    --   try
-    --     let casted ← mkAppOptM ``Nat.cast #[some type, none, some x]
-    --     return .done casted
-    --   catch _ =>
-    --     return .continue
     | _ => return .continue)
 
-def preprocess (props: List Expr) : TacticM (List Expr) := do
-  -- trace[querySMT.debug] "Before preprocess: {props}"
+def hintPostprocessing (props: List Expr) : TacticM (List Expr) := do
+  trace[querySMT.debug] "Before hint postprocessing: {props}"
   let props ← props.mapM renameHelper
-
   let props ← props.mapM removeHaveStatements
-
   let props ← if ← getFilterRedundanciesM then
     props.mapM removeRedundantHypotheses
   else
     pure props
-
   let props ← props.mapM replaceIntOfNat
-  -- trace[querySMT.debug] "After preprocess: {props}"
+  trace[querySMT.debug] "After hint postprocessing: {props}"
   return props
 
 def evalQuerySMTWithArgs (stxRef : Syntax) (facts : Syntax.TSepArray [`QuerySMT.querySMTStar, `term] ",")
@@ -726,11 +679,11 @@ def evalQuerySMTWithArgs (stxRef : Syntax) (facts : Syntax.TSepArray [`QuerySMT.
         let (preprocessFacts, theoryLemmas, _instantiations, computationLemmas, polynomialLemmas, rewriteFacts) := allSMTLemmas
 
         -- Preprocessing to make output cleaner
-        let preprocessFacts ← preprocess preprocessFacts
-        let theoryLemmas ← preprocess theoryLemmas
-        let _instantiations ← preprocess _instantiations
-        let computationLemmas ← preprocess computationLemmas
-        let polynomialLemmas ← preprocess polynomialLemmas
+        let preprocessFacts ← hintPostprocessing preprocessFacts
+        let theoryLemmas ← hintPostprocessing theoryLemmas
+        let _instantiations ← hintPostprocessing _instantiations
+        let computationLemmas ← hintPostprocessing computationLemmas
+        let polynomialLemmas ← hintPostprocessing polynomialLemmas
 
         let smtLemmas :=
           if ← getIgnoreHintsM then
