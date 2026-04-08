@@ -20,23 +20,22 @@ To confirm that you have the correct version of `cvc5` installed, run `cvc5 -h |
 
 ## Adding QuerySMT to your project
 
-To add QuerySMT for `v4.22.0` to an existing project with a `lakefile.toml` file, add the following dependency:
+To add QuerySMT for `v4.29.0` to an existing project with a `lakefile.toml` file, add the following dependency:
 
 ```toml
 [[require]]
 name = "QuerySMT"
 git = "https://github.com/JOSHCLUNE/QuerySMT.git"
-rev = "v4.22.0"
 ```
 
 The file `lean-toolchain` should contain the following:
 ```
-leanprover/lean4:v4.22.0
+leanprover/lean4:v4.29.0
 ```
 
 If you have a project with a `lakefile.lean` instead of a `lakefile.toml` file, you can use this instead:
 ```lean
-require QuerySMT from git "https://github.com/JOSHCLUNE/QuerySMT.git" @ "v4.22.0"
+require QuerySMT from git "https://github.com/JOSHCLUNE/QuerySMT.git"
 ```
 
 Then, make sure that your `lean-toolchain` file contains the same version of Lean 4 as QuerySMT and that if your project imports [mathlib](https://github.com/leanprover-community/mathlib4), then it uses the same version of mathlib as QuerySMT. This step is necessary because QuerySMT depends on mathlib, so errors can arise if your project attempts to import a version of mathlib different from the one imported by QuerySMT.
