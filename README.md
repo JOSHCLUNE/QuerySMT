@@ -18,6 +18,8 @@ sudo make install
 
 To confirm that you have the correct version of `cvc5` installed, run `cvc5 -h | grep "dump-hints"`. A succesful implementation of the instrumented fork should yield the output: `--dump-hints dump solving hints: instantiations, lemmas, rewrites`.
 
+***Note**: Although QuerySMT currently requires users to install this fork of `cvc5` manually, I am in the process of removing this step to make QuerySMT more easily accessible.*
+
 ## Adding QuerySMT to your project
 
 To add QuerySMT for `v4.29.0` to an existing project with a `lakefile.toml` file, add the following dependency:
