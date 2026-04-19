@@ -4,7 +4,6 @@ import Mathlib.Tactic.Linarith
 
 set_option auto.smt true
 set_option auto.smt.solver.name "cvc5"
-set_option auto.smt.dumpHints true
 
 set_option auto.smt.save false
 set_option auto.smt.savepath "/Users/joshClune/Desktop/temp.smt"
@@ -425,16 +424,6 @@ example (f : Int → Int) (hmin : ∃ x, ∀ y, x ≠ y → f x < f y) : ∃ x :
 
 example (f : Int → Int) (hmin : ∃ x, ∀ y, x ≠ y → f x < f y) : ∃ x : Int, ∀ y : Int, f x ≤ f y := by
   querySMT
-
-example (f : Int → Int) (min max : Int)
-  (hmin : ∀ x, min ≠ x → f min < f x)
-  (hmax : ∀ x, max ≠ x → f max > f x)
-  : ∀ x, ∀ y, f x - f y ≤ (f max - f min) := by
-  -- `querySMT` fails here
-  apply @Classical.byContradiction
-  intro negGoal
-  skolemizeAll
-  autoGetHints
 
 example (m n : ℤ) : (m - n).gcd m = n.gcd m := by
   querySMT [Int.gcd_mul_right_sub_left]

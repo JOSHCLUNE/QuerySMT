@@ -1,4 +1,6 @@
 import Duper
+import Aesop
+import QuerySMT.AutoExtension
 import QuerySMT.SkolemizeAll
 import Mathlib.Order.Defs.LinearOrder
 
@@ -234,10 +236,9 @@ def withAutoOptions {m : Type → Type} [MonadWithOptions m] {α : Type} (x : m 
       let o := o.set `auto.smt true
       let o := o.set `auto.smt.trust true
       let o := o.set `auto.smt.solver.name "cvc5"
-      let o := o.set `auto.smt.dumpHints true
       let o := o.set `auto.mono.ignoreNonQuasiHigherOrder true
       let o := o.set `auto.smt.ignoreUnusableFacts true
-      o.set `auto.smt.dumpHints.limitedRws true
+      o.set `auto.smt.additionalFlags "--dump-hints --proof-granularity=dsl-rewrite --hints-only-rw-insts"
     ) x
 
 def withDuperOptions [Monad m] [MonadError m] [MonadWithOptions m] (x : m α) : m α :=
@@ -851,7 +852,7 @@ def evalQuerySMTWithArgs (stxRef : Syntax) (facts : Syntax.TSepArray [`QuerySMT.
               | none => throwError "querySMT :: Unable to find a necessary fact in the local context"
             | none => throwError "querySMT :: Unable to find a necessary fact in the local context"
           -- Create the suggestion
-          addTryThisTacticSeqSuggestion stxRef tacticSeq (← getRef)
+          Aesop.addTryThisTacticSeqSuggestion stxRef tacticSeq (← getRef)
           let proof ← mkAppM ``sorryAx #[Expr.const ``False [], Expr.const ``false []]
           let newAbsurd ← getMainGoal -- Main goal changed by `skolemizeAll` and selector creation
           tryCatchRuntimeEx
@@ -1053,7 +1054,7 @@ def evalQuerySMTCheckHintReconstructionWithArgs (stxRef : Syntax) (facts : Synta
           tacticsArr := tacticsArr.push $ ← `(tactic| sorry)
           let tacticSeq ← `(tacticSeq| $tacticsArr*)
           -- Create the suggestion
-          addTryThisTacticSeqSuggestion stxRef tacticSeq (← getRef)
+          Aesop.addTryThisTacticSeqSuggestion stxRef tacticSeq (← getRef)
           let proof ← mkAppM ``sorryAx #[Expr.const ``False [], Expr.const ``false []]
           let newAbsurd ← getMainGoal -- Main goal changed by `skolemizeAll` and selector creation
           tryCatchRuntimeEx
