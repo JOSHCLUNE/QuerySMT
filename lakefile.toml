@@ -1,0 +1,26 @@
+name = "QuerySMT"
+version = "0.1.0"
+defaultTargets = ["QuerySMT"]
+precompileModules = false
+preferReleaseBuild = false
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.29.0"
+
+[[require]]
+name = "Duper"
+git = "https://github.com/leanprover-community/duper.git"
+rev = "a05206eadfece7682abf44d52e8fd8c7110ef58a"
+
+[[require]]
+name = "premise-selection"
+git = "https://github.com/hanwenzhu/premise-selection"
+rev = "v4.29.0"
+
+[[lean_lib]]
+name = "QuerySMT"
+
+[[lean_lib]]
+name = "QuerySMTTests"
