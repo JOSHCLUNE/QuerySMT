@@ -12,7 +12,7 @@ rev = "v4.29.0"
 [[require]]
 name = "Duper"
 git = "https://github.com/leanprover-community/duper.git"
-rev = "a05206eadfece7682abf44d52e8fd8c7110ef58a"
+rev = "b08d0fef3df052db9723f62b0000e576ed170cc1"
 
 [[require]]
 name = "premise-selection"
